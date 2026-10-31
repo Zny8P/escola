@@ -2,4 +2,4 @@
 
 ## [Flashcard](./flashcard)
 
-## [teste de IP público](./ip_pub/index)
+## [teste de IP público](./ip_pub/html/)
