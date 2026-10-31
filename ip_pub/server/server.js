@@ -4,6 +4,28 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Permite que o frontend hospedado no GitHub Pages consulte a API.
+app.use((req, res, next) => {
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "https://zny8p.github.io"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
 // O Render utiliza um proxy para receber conexões externas.
 app.set("trust proxy", 1);
 
