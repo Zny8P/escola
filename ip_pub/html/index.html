@@ -83,12 +83,15 @@
     const listaEl = document.getElementById("lista");
     const contadorEl = document.getElementById("contador");
 
+    // Servidor publicado no Render.
+    const API_BASE = "https://ip-ulyg.onrender.com";
+
     const sessionId = crypto.randomUUID();
     let participando = false;
     let atualizando = false;
 
     async function requisicao(url, dados) {
-      const resposta = await fetch(url, {
+      const resposta = await fetch(`${API_BASE}${url}`, {
         method: dados ? "POST" : "GET",
         headers: dados ? { "Content-Type": "application/json" } : {},
         body: dados ? JSON.stringify(dados) : undefined
