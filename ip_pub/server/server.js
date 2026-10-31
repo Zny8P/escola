@@ -1,0 +1,81 @@
+const express = require("express");
+const path = require("path");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// O Render utiliza um proxy para receber conexões externas.
+app.set("trust proxy", 1);
+
+app.use(express.json({ limit: "10kb" }));
+app.use(express.static(path.join(__dirname, "public")));
+
+const participants = new Map();
+const INACTIVE_TIMEOUT = 30_000;
+
+function getPublicConnectionIP(req) {
+  return req.ip || req.socket.remoteAddress || "Desconhecido";
+}
+
+app.post("/api/join", (req, res) => {
+  const { sessionId } = req.body || {};
+
+  if (
+    typeof sessionId !== "string" ||
+    !/^[a-f0-9-]{36}$/i.test(sessionId)
+  ) {
+    return res.status(400).json({ error: "Sessão inválida." });
+  }
+
+  participants.set(sessionId, {
+    ip: getPublicConnectionIP(req),
+    lastSeen: Date.now()
+  });
+
+  res.json({ success: true });
+});
+
+app.post("/api/heartbeat", (req, res) => {
+  const { sessionId } = req.body || {};
+  const participant = participants.get(sessionId);
+
+  if (!participant) {
+    return res.status(404).json({ error: "Participante não encontrado." });
+  }
+
+  participant.lastSeen = Date.now();
+  participant.ip = getPublicConnectionIP(req);
+
+  res.json({ success: true });
+});
+
+app.get("/api/participants", (req, res) => {
+  const now = Date.now();
+
+  for (const [id, participant] of participants) {
+    if (now - participant.lastSeen > INACTIVE_TIMEOUT) {
+      participants.delete(id);
+    }
+  }
+
+  const list = [...participants.entries()].map(([id, participant]) => ({
+    id,
+    ip: participant.ip
+  }));
+
+  res.json({ count: list.length, participants: list });
+});
+
+app.post("/api/leave", (req, res) => {
+  const { sessionId } = req.body || {};
+
+  if (typeof sessionId === "string") {
+    participants.delete(sessionId);
+  }
+
+  res.json({ success: true });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Servidor iniciado na porta ${PORT}`);
+});

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rede Escolar — Demonstração</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px; background: #10151f;
+      color: #edf2ff; font-family: Arial, sans-serif;
+    }
+    main { max-width: 760px; margin: 30px auto; }
+    h1 { margin-bottom: 8px; }
+    .subtitulo { color: #aab6cc; line-height: 1.5; }
+    .painel {
+      margin-top: 22px; padding: 20px; background: #1a2332;
+      border: 1px solid #33425a; border-radius: 14px;
+    }
+    button {
+      padding: 12px 18px; border: 0; border-radius: 8px;
+      background: #64d9a3; color: #10251c; font-size: 16px;
+      font-weight: bold; cursor: pointer;
+    }
+    button:disabled { opacity: .5; cursor: wait; }
+    #sair { margin-left: 8px; background: #f19b9b; }
+    #status { color: #b8c8df; margin-top: 14px; }
+    .resumo {
+      display: flex; justify-content: space-between; gap: 12px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .contador { color: #64d9a3; font-weight: bold; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; padding: 14px 10px; border-top: 1px solid #33425a;
+      overflow-wrap: anywhere;
+    }
+    .numero { color: #8da5c6; min-width: 32px; }
+    .ip { font-family: monospace; font-size: 15px; }
+    .aviso { color: #aab6cc; font-size: 13px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Conexões da demonstração</h1>
+    <p class="subtitulo">
+      Veja os participantes conectados ao servidor.
+      A lista é atualizada automaticamente a cada 5 segundos.
+    </p>
+
+    <section class="painel">
+      <h2>Participação</h2>
+      <p>
+        Ao participar, você autoriza a exibição do IP público
+        observado pelo servidor nesta demonstração.
+      </p>
+      <button id="entrar">Participar da demonstração</button>
+      <button id="sair" hidden>Sair</button>
+      <p id="status">Você ainda não está participando.</p>
+    </section>
+
+    <section class="painel">
+      <div class="resumo">
+        <strong>Participantes ativos</strong>
+        <span class="contador" id="contador">0</span>
+      </div>
+      <ul id="lista">
+        <li>Aguardando participantes...</li>
+      </ul>
+      <p class="aviso">
+        Vários dispositivos podem aparecer com o mesmo IP público,
+        especialmente quando estão conectados à mesma rede escolar.
+        A lista mostra sessões participantes, não pessoas identificadas.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const botaoEntrar = document.getElementById("entrar");
+    const botaoSair = document.getElementById("sair");
+    const statusEl = document.getElementById("status");
+    const listaEl = document.getElementById("lista");
+    const contadorEl = document.getElementById("contador");
+
+    const sessionId = crypto.randomUUID();
+    let participando = false;
+    let atualizando = false;
+
+    async function requisicao(url, dados) {
+      const resposta = await fetch(url, {
+        method: dados ? "POST" : "GET",
+        headers: dados ? { "Content-Type": "application/json" } : {},
+        body: dados ? JSON.stringify(dados) : undefined
+      });
+
+      if (!resposta.ok) {
+        throw new Error("Falha na comunicação com o servidor.");
+      }
+      return resposta.json();
+    }
+
+    async function entrar() {
+      botaoEntrar.disabled = true;
+      try {
+        await requisicao("/api/join", { sessionId });
+        participando = true;
+        botaoEntrar.hidden = true;
+        botaoSair.hidden = false;
+        statusEl.textContent = "Você está participando.";
+        await atualizarLista();
+      } catch (erro) {
+        statusEl.textContent = "Não foi possível conectar. Tente novamente.";
+      } finally {
+        botaoEntrar.disabled = false;
+      }
+    }
+
+    async function sair() {
+      participando = false;
+      botaoEntrar.hidden = false;
+      botaoSair.hidden = true;
+      statusEl.textContent = "Você saiu da demonstração.";
+      try {
+        await requisicao("/api/leave", { sessionId });
+        await atualizarLista();
+      } catch (erro) {
+        statusEl.textContent =
+          "Saiu localmente, mas o servidor não confirmou a saída.";
+      }
+    }
+
+    async function atualizarLista() {
+      if (atualizando) return;
+      atualizando = true;
+      try {
+        const dados = await requisicao("/api/participants");
+        contadorEl.textContent = dados.count;
+        listaEl.replaceChildren();
+
+        if (dados.participants.length === 0) {
+          const item = document.createElement("li");
+          item.textContent = "Nenhum participante ativo.";
+          listaEl.appendChild(item);
+          return;
+        }
+
+        dados.participants.forEach((participante, indice) => {
+          const item = document.createElement("li");
+          const numero = document.createElement("span");
+          numero.className = "numero";
+          numero.textContent = `#${indice + 1}`;
+
+          const ip = document.createElement("span");
+          ip.className = "ip";
+          ip.textContent = participante.ip;
+
+          item.append(numero, ip);
+          listaEl.appendChild(item);
+        });
+      } catch (erro) {
+        statusEl.textContent =
+          "Não foi possível atualizar. Verifique a conexão.";
+      } finally {
+        atualizando = false;
+      }
+    }
+
+    botaoEntrar.addEventListener("click", entrar);
+    botaoSair.addEventListener("click", sair);
+
+    setInterval(async () => {
+      if (participando) {
+        try {
+          await requisicao("/api/heartbeat", { sessionId });
+        } catch (erro) {
+          statusEl.textContent =
+            "Conexão interrompida. Tente entrar novamente.";
+        }
+      }
+      await atualizarLista();
+    }, 5000);
+
+    atualizarLista();
+  </script>
+</body>
+</html>
