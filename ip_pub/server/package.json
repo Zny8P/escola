@@ -1,0 +1,13 @@
+{
+  "name": "demonstracao-rede-escolar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Demonstração de participantes e IP observado pelo servidor",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

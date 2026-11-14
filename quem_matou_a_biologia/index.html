@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quem matou a biologia? D:</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!--  Tela de jogo (Cenário)  -->
+    <div id="game-container">
+        <!-- Tela de transição Fade (desvanecer/reaparecer) -->
+        <div id="fade-overlay"></div>
+
+        <!--  Cenário e personagens  -->
+        <div id="world">
+            <div id="background"></div>
+            
+            <!--  Zonas Extras (Quarto da Biologia e Estoque)  -->
+            <div id="zone-biologia" class="room-zone">
+                <div class="room-floor"></div>
+                <div id="door-biologia-out" class="door"></div>
+            </div>
+
+            <div id="zone-estoque" class="room-zone">
+                <div class="room-floor"></div>
+                <div id="door-estoque-out" class="door"></div>
+            </div>
+
+            <!--  Chão segundo andar  -->
+            <div id="floor-top" class="floor"></div>
+
+            <!--  Escada para o segundo andar  -->
+            <div id="stairs"></div>
+
+            <!--  Chão primeiro andar  -->
+            <div id="floor-down" class="floor"></div>
+
+            <div id="handrail_r" class="handrail"></div>
+            <div id="handrail_l" class="handrail"></div>
+
+            <!--  Portas no Cenário Principal  -->
+            <!-- Porta Estoque (Térreo, depois da escada) -->
+            <div id="door-estoque-in" class="door"></div>
+            <!-- Porta Quarto da Biologia (1º andar, perto da parede esquerda) -->
+            <div id="door-biologia-in" class="door"></div>
+
+            <!--  Os Suspeitos — Zny, Nemo, Lázaro  -->
+            <div id="zny" class="sprite"></div>
+            <div id="nemo" class="sprite"></div>
+            <div id="lazaro" class="sprite"></div>
+
+            <!--  Player — O Detetive  -->
+            <div id="player" class="sprite"></div>
+
+            <!--  Balão de interação  -->
+            <div id="intereaction-bubble" class="hidden-sprite"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
