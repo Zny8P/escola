@@ -12,6 +12,9 @@
         <!-- Tela de transição Fade (desvanecer/reaparecer) -->
         <div id="fade-overlay"></div>
 
+        <!--  Balão de interação (!) posicionado no game-container para usar coordenadas corretas da tela  -->
+        <div id="intereaction-bubble" class="hidden"></div>
+
         <!--  Cenário e personagens  -->
         <div id="world">
             <div id="background"></div>
@@ -19,12 +22,19 @@
             <!--  Zonas Extras (Quarto da Biologia e Estoque)  -->
             <div id="zone-biologia" class="room-zone">
                 <div class="room-floor"></div>
+                <div id="door-biologia-out-frame" class="door-frame"></div>
                 <div id="door-biologia-out" class="door"></div>
             </div>
 
             <div id="zone-estoque" class="room-zone">
                 <div class="room-floor"></div>
+                <div id="door-estoque-out-frame" class="door-frame"></div>
                 <div id="door-estoque-out" class="door"></div>
+
+                <div id="rack01" class="storage-rack"></div>
+                <div id="rack02" class="storage-rack"></div>
+                <div id="rack03" class="storage-rack"></div>
+                <div id="crime-weapon"></div>
             </div>
 
             <!--  Chão segundo andar  -->
@@ -41,20 +51,26 @@
 
             <!--  Portas no Cenário Principal  -->
             <!-- Porta Estoque (Térreo, depois da escada) -->
+            <div id="door-estoque-in-frame" class="door-frame"></div>
             <div id="door-estoque-in" class="door"></div>
             <!-- Porta Quarto da Biologia (1º andar, perto da parede esquerda) -->
+            <div id="door-biologia-in-frame" class="door-frame"></div>
             <div id="door-biologia-in" class="door"></div>
 
-            <!--  Os Suspeitos — Zny, Nemo, Lázaro  -->
+            <!--  Os Suspeitos — Zny, Nemo, Lázaro e Biologia  -->
             <div id="zny" class="sprite"></div>
             <div id="nemo" class="sprite"></div>
             <div id="lazaro" class="sprite"></div>
+            <div id="biologia" class="dead-sprite"></div>
+
 
             <!--  Player — O Detetive  -->
             <div id="player" class="sprite"></div>
+        </div>
 
-            <!--  Balão de interação  -->
-            <div id="intereaction-bubble" class="hidden-sprite"></div>
+        <!--  Caixa de Diálogo (Placeholder)  -->
+        <div id="dialog-box" class="hidden">
+            <div id="dialog-text"></div>
         </div>
     </div>
 

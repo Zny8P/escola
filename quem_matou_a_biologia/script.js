@@ -2,6 +2,9 @@ const world = document.getElementById('world');
 const stairs = document.getElementById('stairs');
 const player = document.getElementById('player');
 const fadeOverlay = document.getElementById('fade-overlay');
+const interactionBubble = document.getElementById('intereaction-bubble');
+const dialogBox = document.getElementById('dialog-box');
+const dialogText = document.getElementById('dialog-text');
 
 let playerx = 50; // Posição horizontal inicial
 let playery = 50; // Posição vertical inicial
@@ -41,24 +44,23 @@ const top_floor_max_x = 2000;
 let current_zone = 'main'; // 'main', 'estoque', 'biologia'
 let is_transitioning = false;
 let door_cooldown = false; // Evita entrar/sair repetidamente segurando W
+let is_in_dialog = false;  // Trava o movimento durante o diálogo
 
 const zone_bounds = {
     'main':     { minX: 0,    maxX: 2000 },
-    'estoque':  { minX: 2500, maxX: 3300 }, // 800px de largura
-    'biologia': { minX: 3800, maxX: 4600 }  // 800px de largura
+    'estoque':  { minX: 2500, maxX: 3300 },
+    'biologia': { minX: 3800, maxX: 4600 }
 };
 
-// Definição de todas as portas (largura 66px, altura 120px)
+// Definição de todas as portas
 const doors = [
-    // Porta do Estoque (Térreo -> Zona Estoque)
     {
         zone: 'main',
         x: 1350, y: 50, width: 66, height: 120,
         targetZone: 'estoque',
-        targetX: 2500 + 80 + (66 / 2) - (player_width / 2), // Centraliza na porta de saída
+        targetX: 2500 + 80 + (66 / 2) - (player_width / 2),
         targetY: 50
     },
-    // Saída do Estoque (Zona Estoque -> Térreo)
     {
         zone: 'estoque',
         x: 2580, y: 50, width: 66, height: 120,
@@ -66,7 +68,6 @@ const doors = [
         targetX: 1350 + (66 / 2) - (player_width / 2),
         targetY: 50
     },
-    // Porta do Quarto da Biologia (1º Andar -> Zona Biologia)
     {
         zone: 'main',
         x: 80, y: 350, width: 66, height: 120,
@@ -74,7 +75,6 @@ const doors = [
         targetX: 3800 + 80 + (66 / 2) - (player_width / 2),
         targetY: 50
     },
-    // Saída do Quarto da Biologia (Zona Biologia -> 1º Andar)
     {
         zone: 'biologia',
         x: 3880, y: 50, width: 66, height: 120,
@@ -84,21 +84,126 @@ const doors = [
     }
 ];
 
-function enterDoor(door) {
+// =========================================
+// SISTEMA DE INTERAÇÃO E DIÁLOGOS (.JSON SIMULADO)
+// =========================================
+const npc_dialogues = {
+    'nemo': {
+        first: "Ei, detetive! Eu estava estudando na biblioteca quando tudo aconteceu. Nem vi nada.",
+        others: [
+            "Você já olhou lá no estoque? Sempre deixam as coisas bagunçadas lá.",
+            "A biologia era exigida por todos nós... Quem faria isso?",
+            "Não olhe pra mim com essa cara de suspeito!"
+        ]
+    },
+    'zny': {
+        first: "Oi! A aula de laboratório ia ser hoje... que tragédia!",
+        others: [
+            "Eu vi alguém correndo para o segundo andar mais cedo.",
+            "As pistas genéticas não mentem, detetive!",
+            "Espero que a gente consiga resolver isso logo."
+        ]
+    },
+    'lazaro': {
+        first: "Hum? Não me incomode, estou ocupado analisando os relatórios.",
+        others: [
+            "O estoque trancado guarda segredos interessantes...",
+            "Cuidado com quem você acusa por aí.",
+            "A justiça tarda, mas não falha."
+        ]
+    },
+    'biologia': {
+        first: "[O corpo da vítima está estirado no chão, cercado por vestígios de DNA e anotações científicas espalhadas.]",
+        others: [
+            "[Há vestígios de marcadores STR e proteínas analisadas ao redor da cena do crime.]",
+            "[A amostra biológica na camisa parece conter pistas cruciais sobre o assassino.]"
+        ]
+    }
+};
+
+// Objeto para rastrear o histórico de conversas com cada NPC
+const npc_history = {
+    'nemo': 0,
+    'zny': 0,
+    'lazaro': 0,
+    'biologia': 0
+};
+
+// Lista de elementos interativos (Personagens e Portas)
+const interactables = [
+    // Personagens (com margem de proximidade maior / bônus de alcance)
+    { type: 'npc', id: 'nemo', zone: 'main', x: 300, y: 50, width: 22, height: 96, extra_reach: 40 },
+    { type: 'npc', id: 'zny', zone: 'main', x: 1500, y: 350, width: 22, height: 96, extra_reach: 40 },
+    { type: 'npc', id: 'lazaro', zone: 'main', x: 1850, y: 50, width: 22, height: 96, extra_reach: 40 },
+    { type: 'npc', id: 'biologia', zone: 'biologia', x: 4300, y: 50, width: 96, height: 22, extra_reach: 50 },
+    
+    // Portas (sem bônus extra, precisando encostar)
+    { type: 'door', zone: 'main', x: 1350, y: 50, width: 66, height: 120, extra_reach: 0, targetZone: 'estoque', targetX: 2580 + 33 - 11, targetY: 50 },
+    { type: 'door', zone: 'estoque', x: 2580, y: 50, width: 66, height: 120, extra_reach: 0, targetZone: 'main', targetX: 1350 + 33 - 11, targetY: 50 },
+    { type: 'door', zone: 'main', x: 80, y: 350, width: 66, height: 120, extra_reach: 0, targetZone: 'biologia', targetX: 3880 + 33 - 11, targetY: 50 },
+    { type: 'door', zone: 'biologia', x: 3880, y: 50, width: 66, height: 120, extra_reach: 0, targetZone: 'main', targetX: 80 + 33 - 11, targetY: 350 }
+];
+
+function getActiveInteractable() {
+    const player_center_x = playerx + (player_width / 2);
+    const player_center_y = playery + (player_height / 2);
+
+    for (let item of interactables) {
+        if (item.zone === current_zone) {
+            const reach = item.extra_reach || 0;
+            const expanded_x = item.x - reach;
+            const expanded_width = item.width + (reach * 2);
+            const expanded_y = item.y - reach;
+            const expanded_height = item.height + (reach * 2);
+
+            const inside_x = player_center_x >= expanded_x && player_center_x <= (expanded_x + expanded_width);
+            const inside_y = player_center_y >= expanded_y && player_center_y <= (expanded_y + expanded_height);
+
+            if (inside_x && inside_y) {
+                return item;
+            }
+        }
+    }
+    return null;
+}
+
+function startDialogue(npc_id) {
+    is_in_dialog = true;
+    velocityY = 0;
+    interactionBubble.classList.add('hidden');
+
+    const data = npc_dialogues[npc_id];
+    let speech = "";
+
+    if (npc_history[npc_id] === 0) {
+        speech = data.first;
+        npc_history[npc_id]++;
+    } else {
+        const randIndex = Math.floor(Math.random() * data.others.length);
+        speech = data.others[randIndex];
+    }
+
+    dialogText.textContent = speech;
+    dialogBox.classList.remove('hidden');
+}
+
+function closeDialogue() {
+    is_in_dialog = false;
+    dialogBox.classList.add('hidden');
+}
+
+function enterDoorFromList(item) {
     is_transitioning = true;
     door_cooldown = true;
     velocityY = 0;
 
-    // Inicia o desvanecer (Fade Out)
     fadeOverlay.classList.add('active');
 
-    // Na metade da animação (250ms), teleporta o player e atualiza a câmera
     setTimeout(() => {
-        current_zone = door.targetZone;
-        playerx = door.targetX;
-        playery = door.targetY;
+        current_zone = item.targetZone;
+        playerx = item.targetX;
+        playery = item.targetY;
 
-        // Reposiciona a câmera imediatamente para não haver arrasto visual
         const bounds = zone_bounds[current_zone];
         let new_cam_x = playerx - 400;
         if (new_cam_x < bounds.minX) new_cam_x = bounds.minX;
@@ -110,7 +215,6 @@ function enterDoor(door) {
         if (new_cam_y > 200) new_cam_y = 200;
         cameray = new_cam_y;
 
-        // Libera o movimento ao final dos 500ms totais
         setTimeout(() => {
             is_transitioning = false;
         }, 50);
@@ -125,11 +229,17 @@ const keys = {};
 
 window.addEventListener('keydown', (e) => {
     keys[e.key] = true;
+
+    // Se estiver em diálogo, pressionar Espaço, Enter ou E fecha a caixa
+    if (is_in_dialog) {
+        if (e.key === ' ' || e.key === 'Enter' || e.key === 'e' || e.key === 'E') {
+            closeDialogue();
+        }
+    }
 });
 
 window.addEventListener('keyup', (e) => {
     keys[e.key] = false;
-    // Libera o cooldown da porta quando o jogador solta a tecla de interação
     if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') {
         door_cooldown = false;
     }
@@ -137,27 +247,56 @@ window.addEventListener('keyup', (e) => {
 
 function gameLoop() {
 
-    // Trava a movimentação enquanto a tela está fazendo a transição
-    if (is_transitioning) {
+    // Trava a movimentação durante transição ou diálogo
+    if (is_transitioning || is_in_dialog) {
+        interactionBubble.classList.add('hidden');
         requestAnimationFrame(gameLoop);
         return;
     }
 
     let is_moving = false;
     const up_pressed = keys['ArrowUp'] || keys['w'] || keys['W'];
+    const interact_pressed = keys['e'] || keys['E'];
 
-    // 0. Checagem de Interação com Portas
+    // Checar elemento ativo para interação
+    const activeItem = getActiveInteractable();
+
+    if (activeItem) {
+        // Posiciona o balão de interação (!) na tela de forma correta (relativo ao game-container)
+        const player_screen_x = playerx - camerax + (player_width / 2);
+        // Altura do jogo = 450px. Player bottom = playery, height = player_height.
+        const player_screen_y = 450 - (playery - cameray) - player_height - 15;
+        
+        interactionBubble.style.left = player_screen_x + 'px';
+        interactionBubble.style.top = player_screen_y + 'px';
+        interactionBubble.classList.remove('hidden');
+
+        // Disparar interação baseada no tipo do item:
+        // - Portas abrem com W / Seta para Cima (up_pressed)
+        // - NPCs abrem com E (interact_pressed)
+        if (activeItem.type === 'door' && up_pressed && !door_cooldown) {
+            enterDoorFromList(activeItem);
+            requestAnimationFrame(gameLoop);
+            return;
+        } else if (activeItem.type === 'npc' && interact_pressed) {
+            startDialogue(activeItem.id);
+        }
+    } else {
+        interactionBubble.classList.add('hidden');
+    }
+
+    // 0. Verificação adicional de portas caso o jogador aperte W em cima de uma porta sem o activeItem por algum motivo
     if (up_pressed && !door_cooldown) {
         const player_center_x = playerx + (player_width / 2);
         const player_center_y = playery + (player_height / 2);
 
-        for (let door of doors) {
-            if (door.zone === current_zone) {
-                const inside_x = player_center_x >= door.x && player_center_x <= (door.x + door.width);
-                const inside_y = player_center_y >= door.y && player_center_y <= (door.y + door.height);
+        for (let item of interactables) {
+            if (item.type === 'door' && item.zone === current_zone) {
+                const inside_x = player_center_x >= item.x && player_center_x <= (item.x + item.width);
+                const inside_y = player_center_y >= item.y && player_center_y <= (item.y + item.height);
 
                 if (inside_x && inside_y) {
-                    enterDoor(door);
+                    enterDoorFromList(item);
                     requestAnimationFrame(gameLoop);
                     return;
                 }
@@ -168,28 +307,27 @@ function gameLoop() {
     // 1. Movimento Horizontal e Direção do Sprite
     if (keys['ArrowRight'] || keys['d'] || keys['D']) {
         playerx += speed;
-        scaleX = 1; // Olha para a direita
+        scaleX = 1;
         is_moving = true;
     }
     if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
         playerx -= speed;
-        scaleX = -1; // Olha para a esquerda
+        scaleX = -1;
         is_moving = true;
     }
 
-    // Limites das bordas da zona atual (impede atravessar paredes ou ir a pé para outras zonas)
+    // Limites das bordas da zona atual
     const bounds = zone_bounds[current_zone];
     if (playerx < bounds.minX) playerx = bounds.minX;
     if (playerx > bounds.maxX - player_width) playerx = bounds.maxX - player_width;
 
-    // 2. Checagem da Escada (Apenas na zona principal 'main')
+    // 2. Checagem da Escada
     const player_center_x = playerx + (player_width / 2);
     const is_inside_stairs_x = current_zone === 'main' && player_center_x >= stairsx && player_center_x <= (stairsx + stairs_width);
     const is_inside_stairs_y = playery >= ground_level && playery <= first_floor_y;
     const is_on_stairs = is_inside_stairs_x && is_inside_stairs_y;
 
     if (is_on_stairs) {
-        // Dentro da escada: Gravidade desativada, controle vertical ativo
         velocityY = 0;
         can_jump = true; 
 
@@ -202,7 +340,6 @@ function gameLoop() {
             is_moving = true;
         }
 
-        // Não deixa passar do topo nem afundar no chão enquanto está na escada
         if (playery > first_floor_y) {
             playery = first_floor_y;
             can_jump = true;
@@ -210,7 +347,6 @@ function gameLoop() {
         if (playery < ground_level) playery = ground_level;
 
     } else {
-        // Fora da escada: Aplica física e gravidade
         let current_ground = ground_level;
 
         if (current_zone === 'main') {
@@ -220,17 +356,14 @@ function gameLoop() {
             }
         }
 
-        // COMANDO DO PULO
         if (can_jump && keys[' ']) {
             velocityY = jump_force; 
             can_jump = false;       
         }
 
-        // Aplica a gravidade na velocidade vertical
         velocityY -= gravity;
         playery += velocityY;
 
-        // Colisão ao pousar no chão
         if (playery <= current_ground) {
             playery = current_ground;
             velocityY = 0;
@@ -238,7 +371,7 @@ function gameLoop() {
         }
     }
 
-    // 3. Juice de Movimento (Balanço rítmico enquanto anda)
+    // 3. Juice de Movimento
     let bobbing_y = 0;
     let bobbing_scale_x = scaleX;
     let bobbing_scale_y = 1;
@@ -260,7 +393,7 @@ function gameLoop() {
     player.style.transform = `scaleX(${bobbing_scale_x}) scaleY(${bobbing_scale_y}) rotate(${rotation_deg}deg)`;
     player.style.transformOrigin = 'bottom center';
 
-    // 5. Câmera Suavizada respeitando os limites da zona atual
+    // 5. Câmera Suavizada
     let target_camerax = playerx - 400;
     if (target_camerax < bounds.minX) target_camerax = bounds.minX;
     if (target_camerax > bounds.maxX - 800) target_camerax = bounds.maxX - 800;

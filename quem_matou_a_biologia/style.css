@@ -1,5 +1,4 @@
 body{
-
     background-color: #111;
     display: flex;
     justify-content: center;
@@ -7,16 +6,16 @@ body{
     height: 100vh;
     margin: 0;
     overflow: hidden;
-    font-family: monospace
+    font-family: monospace;
 }
 
 #game-container{
     position: relative;
     width: 800px;
     height: 450px;
-    background-color: #2b2b2b; /*BACKGROUND PROVISÓRIO — MUDAR DEPOIS*/
+    background-color: #2b2b2b;
     border: 4px solid #fff;
-    overflow: hidden; /*pra fazer os objetos sumirem ao sair da tela*/
+    overflow: hidden;
 }
 
 /* Efeito de desvanecer (Fade) na tela */
@@ -30,7 +29,7 @@ body{
     opacity: 0;
     pointer-events: none;
     z-index: 999;
-    transition: opacity 0.25s ease-in-out; /* 0.25s ida + 0.25s volta = 0.5s total */
+    transition: opacity 0.25s ease-in-out;
 }
 
 #fade-overlay.active {
@@ -45,12 +44,12 @@ body{
 }
 
 .sprite, #world {
-    will-change: transform, left; /* Avisa o navegador que esses elementos vão se mover */
+    will-change: transform, left;
 }
 
 #world{
     position: absolute;
-    width: 5000px; /* Expandido para comportar as zonas separadas */
+    width: 5000px;
     height: 900px;
     bottom: 0;
     left: 0;
@@ -87,8 +86,8 @@ body{
     position: absolute;
     bottom: 46px;
     left: 900px; 
-    width: 200px; /* Largura da escada */
-    height: 325px; /* Altura do piso inferior ao piso superior */
+    width: 200px;
+    height: 325px;
     background-position: center;
     background-repeat: no-repeat;
     image-rendering: pixelated;
@@ -97,53 +96,69 @@ body{
 
 .handrail {
     position: absolute;
-    bottom: 46px;          /* Mesma altura do chão da escada */
-    height: 355px;         /* Mesma altura da escada */
-    width: 30px;           /* Ajuste a largura conforme o tamanho da sua imagem */
+    bottom: 46px;
+    height: 355px;
+    width: 30px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: contain;
     image-rendering: pixelated;
-    pointer-events: none;  /* Evita que o corrimão interfira em cliques/toques se necessário */
+    pointer-events: none;
     background-image: url('assets/stairs_handtrails.png');
 }
 
 #handrail_l {
-    left: 876px; /* Fica posicionado logo à esquerda da escada (900px) */
+    left: 876px;
 }
 
 #handrail_r {
-    left: 1094px; /* Fica posicionado logo à direita da escada (término em 1100px) */
+    left: 1094px;
 }
 
 /* =========================================
    PORTAS E ZONAS EXTRAS
    ========================================= */
 
-/* Porta: largura 3x o player (22 * 3 = 66px), altura um pouco maior que o player (96 + 24 = 120px) */
+.door-frame{
+    position: absolute;
+    width: 81px;
+    height: 136px;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: pixelated;
+    background-image: url('assets/door_frame.png');
+}
+
 .door {
     position: absolute;
     width: 66px;
     height: 120px;
-    background-color: #cc2222; /* Retângulo vermelho placeholder */
-    border: 3px solid #770000;
-    box-sizing: border-box;
+    background-position: center;
+    image-rendering: pixelated;
+    background-image: url('assets/door.png');
     z-index: 1;
 }
 
-/* Porta do Estoque no Térreo (um pouco depois da escada que termina em 1100px) */
+#door-estoque-in-frame{
+    left: 1342px;
+    bottom: 50px;
+}
+
 #door-estoque-in {
     left: 1350px;
     bottom: 50px;
 }
 
-/* Porta do Quarto da Biologia no 1º Andar (perto da parede esquerda) */
+#door-biologia-in-frame{
+    left: 72px;
+    bottom: 350px;
+}
+
 #door-biologia-in {
     left: 80px;
     bottom: 350px;
 }
 
-/* Zonas Separadas */
 .room-zone {
     position: absolute;
     bottom: 0;
@@ -151,22 +166,25 @@ body{
     height: 900px;
 }
 
-/* Chão marrom padrão das salas placeholders */
 .room-floor {
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
     height: 50px;
-    background-color: #5c3a21; /* Marrom */
+    background-color: #5c3a21;
     border-top: 4px solid #3e2716;
     box-sizing: border-box;
 }
 
-/* Zona 1: Estoque (Sala marrom escuro com chão marrom) */
 #zone-estoque {
     left: 2500px;
-    background-color: #2c1a0e; /* Marrom escuro */
+    background-color: #2c1a0e;
+}
+
+#door-estoque-out-frame{
+    left: 72px;
+    bottom: 50px;
 }
 
 #door-estoque-out {
@@ -174,10 +192,50 @@ body{
     bottom: 50px;
 }
 
-/* Zona 2: Quarto da Biologia (Sala com fundo verde e chão marrom) */
+.storage-rack{
+    position: absolute;
+    height: 160px;
+    width: 128px;
+    background-position: center;
+    image-rendering: pixelated;
+    background-image: url(assets/storage_racks.png);
+}
+
+#rack01{
+    left: 256px;
+    bottom: 50px;
+}
+
+#crime-weapon{
+    width: 32px;
+    height: 32px;
+    position: absolute;
+    left: 490px;
+    bottom: 112px;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: pixelated;
+    background-image: url('assets/crime_weapon.png');
+}
+
+#rack02{
+    left: 438px;
+    bottom: 50px
+}
+
+#rack03{
+    left: 620px;
+    bottom: 50px;
+}
+
 #zone-biologia {
     left: 3800px;
-    background-color: #1e4d2b; /* Verde */
+    background-color: #1e4d2b;
+}
+
+#door-biologia-out-frame{
+    left: 72px;
+    bottom: 50px;
 }
 
 #door-biologia-out {
@@ -185,16 +243,9 @@ body{
     bottom: 50px;
 }
 
-/*=========================================
-                SPRITES
-===========================================*/
-
-
-/*
-FIRST FLOOR: bottom: 350px;
-FLOOR: bottom: 50px;
-*/
-
+/* =========================================
+   SPRITES
+   ========================================= */
 
 .sprite{
     image-rendering: pixelated;
@@ -203,13 +254,29 @@ FLOOR: bottom: 50px;
     height: 96px;
     background-size: cover;
     bottom: 50px;
-    z-index: 5; /* Player e NPCs ficam na frente das portas */
+    z-index: 5;
+}
+
+.dead-sprite{
+    image-rendering: pixelated;
+    position: absolute;
+    width: 96px;
+    height: 22px;
+    background-size: cover;
+    bottom: 50px;
+    z-index: 5;
 }
 
 #player{
     bottom: 50px;
     left: 50px;
     background-image: url('assets/detetive_forense.png');
+}
+
+#biologia{
+    bottom: 50px;
+    left: 4300px;
+    background-image: url('assets/biologia.png');
 }
 
 #zny{
@@ -226,11 +293,49 @@ FLOOR: bottom: 50px;
 
 #lazaro{
     bottom: 50px;
-    left: 1850px; /* Ajustado para ficar dentro dos 2000px do cenário principal */
-    background-image: url('assets/');
+    left: 1850px;
+    background-image: url('assets/lazaro.png');
 }
 
-/*Classe para esconder as coisas, caso necessário*/
+/* =========================================
+   ELEMENTOS DE UI (BALÃO E DIÁLOGO)
+   ========================================= */
+
+#intereaction-bubble {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background-size: cover;
+    background-position: top;
+    image-rendering: pixelated;
+    background-image: url('assets/interaction_icon.png') ;
+    z-index: 100;
+    transform: translate(-50%, -100%);
+}
+
+#dialog-box {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 720px;
+    min-height: 80px;
+    background-color: #d1d1d1;
+    border: 4px solid #ffffff;
+    border-radius: 6px;
+    padding: 12px 18px;
+    box-sizing: border-box;
+    z-index: 1000;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+#dialog-text {
+    color: #000000;
+    font-family: monospace;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
 .hidden{
-    display: none;
+    display: none !important;
 }
