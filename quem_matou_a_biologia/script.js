@@ -1,10 +1,49 @@
 const world = document.getElementById('world');
 const stairs = document.getElementById('stairs');
 const player = document.getElementById('player');
+const gameContainer = document.getElementById('game-container');
 const fadeOverlay = document.getElementById('fade-overlay');
 const interactionBubble = document.getElementById('intereaction-bubble');
 const dialogBox = document.getElementById('dialog-box');
 const dialogText = document.getElementById('dialog-text');
+const flashcardOverlay = document.getElementById('flashcard-overlay');
+const flashcardFolder = document.getElementById('flashcard-folder');
+const flashcardMobileClose = document.getElementById('flashcard-mobile-close');
+const flashcardViewer = document.getElementById('flashcard-viewer');
+const flashcardLoadMessage = document.getElementById('flashcard-load-message');
+const flashcardTitle = document.getElementById('flashcard-title');
+const flashcardQuestion = document.getElementById('flashcard-question');
+const flashcardAnswer = document.getElementById('flashcard-answer');
+const flashcardContent = document.getElementById('flashcard-content');
+const flashcardImage = document.getElementById('flashcard-image');
+const flashcardBackToMenu = document.getElementById('flashcard-back-to-menu');
+const evidenceMenuButton = document.getElementById('evidence-menu-button');
+const evidenceNewIndicator = document.getElementById('evidence-new-indicator');
+const evidenceMenuPanel = document.getElementById('evidence-menu-panel');
+const evidenceMenuMessage = document.getElementById('evidence-menu-message');
+const evidenceMenuEmpty = document.getElementById('evidence-menu-empty');
+const evidenceCarousel = document.getElementById('evidence-carousel');
+const evidenceCarouselTrack = document.getElementById('evidence-carousel-track');
+const flyParticleContainer = document.getElementById('fly-particles');
+
+const flyParticleCount = 4;
+const flyParticleWidth = 140;
+const flyParticleHeight = 48;
+const flyParticles = [];
+let flyParticleTime = 0;
+
+for (let i = 0; i < flyParticleCount; i++) {
+    const element = document.createElement('span');
+    element.className = 'fly-particle';
+    flyParticleContainer.appendChild(element);
+    flyParticles.push({
+        element,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.8 + Math.random() * 0.7,
+        radiusX: 16 + Math.random() * 40,
+        radiusY: 5 + Math.random() * 6
+    });
+}
 
 let playerx = 50; // Posição horizontal inicial
 let playery = 50; // Posição vertical inicial
@@ -45,6 +84,7 @@ let current_zone = 'main'; // 'main', 'estoque', 'biologia'
 let is_transitioning = false;
 let door_cooldown = false; // Evita entrar/sair repetidamente segurando W
 let is_in_dialog = false;  // Trava o movimento durante o diálogo
+let is_in_flashcard = false;
 
 const zone_bounds = {
     'main':     { minX: 0,    maxX: 2000 },
@@ -85,49 +125,174 @@ const doors = [
 ];
 
 // =========================================
-// SISTEMA DE INTERAÇÃO E DIÁLOGOS (.JSON SIMULADO)
+// SISTEMA DE INTERAÇÃO E DIÁLOGOS
 // =========================================
-const npc_dialogues = {
-    'nemo': {
-        first: "Ei, detetive! Eu estava estudando na biblioteca quando tudo aconteceu. Nem vi nada.",
-        others: [
-            "Você já olhou lá no estoque? Sempre deixam as coisas bagunçadas lá.",
-            "A biologia era exigida por todos nós... Quem faria isso?",
-            "Não olhe pra mim com essa cara de suspeito!"
-        ]
-    },
-    'zny': {
-        first: "Oi! A aula de laboratório ia ser hoje... que tragédia!",
-        others: [
-            "Eu vi alguém correndo para o segundo andar mais cedo.",
-            "As pistas genéticas não mentem, detetive!",
-            "Espero que a gente consiga resolver isso logo."
-        ]
-    },
-    'lazaro': {
-        first: "Hum? Não me incomode, estou ocupado analisando os relatórios.",
-        others: [
-            "O estoque trancado guarda segredos interessantes...",
-            "Cuidado com quem você acusa por aí.",
-            "A justiça tarda, mas não falha."
-        ]
-    },
-    'biologia': {
-        first: "[O corpo da vítima está estirado no chão, cercado por vestígios de DNA e anotações científicas espalhadas.]",
-        others: [
-            "[Há vestígios de marcadores STR e proteínas analisadas ao redor da cena do crime.]",
-            "[A amostra biológica na camisa parece conter pistas cruciais sobre o assassino.]"
-        ]
-    }
+const npc_dialogue_files = {
+    nemo: 'speechs/nemo.json',
+    zny: 'speechs/zny.json',
+    lazaro: 'speechs/lazaro.json',
+    biologia: 'speechs/biologia.json'
 };
+const npc_dialogue_cache = {};
+const evidence_files = {
+    'crime-weapon': 'flashcards/crime-weapon.json',
+    biologia: 'flashcards/biologia.json',
+    zny: 'flashcards/zny.json'
+};
+const evidence_cache = {};
+const collected_evidence = [];
+let current_evidence_id = null;
 
-// Objeto para rastrear o histórico de conversas com cada NPC
 const npc_history = {
     'nemo': 0,
     'zny': 0,
     'lazaro': 0,
     'biologia': 0
 };
+
+async function loadNpcDialogue(npc_id) {
+    if (npc_dialogue_cache[npc_id]) {
+        return npc_dialogue_cache[npc_id];
+    }
+
+    const dialogue_file = npc_dialogue_files[npc_id];
+    if (!dialogue_file) {
+        throw new Error(`Arquivo de diálogo não definido para "${npc_id}".`);
+    }
+
+    const response = await fetch(dialogue_file);
+    if (!response.ok) {
+        throw new Error(`Falha ao carregar "${dialogue_file}": HTTP ${response.status}.`);
+    }
+
+    const data = await response.json();
+    if (
+        !data ||
+        typeof data.first !== 'string' ||
+        !Array.isArray(data.others) ||
+        data.others.length === 0 ||
+        data.others.some((line) => typeof line !== 'string')
+    ) {
+        throw new Error(`Formato inválido em "${dialogue_file}".`);
+    }
+
+    npc_dialogue_cache[npc_id] = data;
+    return data;
+}
+
+async function loadEvidenceCard(evidence_id) {
+    if (evidence_cache[evidence_id]) {
+        return evidence_cache[evidence_id];
+    }
+
+    const evidence_file = evidence_files[evidence_id];
+    if (!evidence_file) {
+        throw new Error(`Arquivo de evidência não definido para "${evidence_id}".`);
+    }
+
+    const response = await fetch(evidence_file);
+    if (!response.ok) {
+        throw new Error(`Falha ao carregar "${evidence_file}": HTTP ${response.status}.`);
+    }
+
+    const data = await response.json();
+    const required_fields = ['title', 'question', 'answer', 'img', 'content'];
+    if (!data || required_fields.some((field) => typeof data[field] !== 'string' || !data[field].trim())) {
+        throw new Error(`Formato inválido em "${evidence_file}".`);
+    }
+
+    const evidence = { id: evidence_id, ...data, isNew: true };
+    evidence_cache[evidence_id] = evidence;
+    return evidence;
+}
+
+function updateEvidenceMenuButton() {
+    const has_new_evidence = collected_evidence.some((evidence) => evidence.isNew);
+    evidenceNewIndicator.classList.toggle('hidden', !has_new_evidence);
+}
+
+async function collectEvidence(evidence_id) {
+    const found = collected_evidence.find((evidence) => evidence.id === evidence_id);
+    if (found) {
+        return found;
+    }
+
+    const evidence = await loadEvidenceCard(evidence_id);
+    collected_evidence.push(evidence);
+    updateEvidenceMenuButton();
+    evidenceMenuMessage.classList.add('hidden');
+    return evidence;
+}
+
+function renderEvidenceMenu() {
+    evidenceCarouselTrack.replaceChildren();
+
+    if (collected_evidence.length === 0) {
+        evidenceMenuEmpty.classList.remove('hidden');
+        evidenceCarousel.classList.add('hidden');
+        return;
+    }
+
+    evidenceMenuEmpty.classList.add('hidden');
+    evidenceCarousel.classList.remove('hidden');
+
+    for (const evidence of collected_evidence) {
+        const card_button = document.createElement('button');
+        card_button.className = 'evidence-card-thumb';
+        card_button.type = 'button';
+        card_button.setAttribute('aria-label', `Abrir evidência: ${evidence.title}`);
+
+        const image = document.createElement('img');
+        image.src = evidence.img;
+        image.alt = '';
+
+        const title = document.createElement('span');
+        title.textContent = evidence.title;
+
+        card_button.appendChild(image);
+        card_button.appendChild(title);
+        if (evidence.isNew) {
+            const badge = document.createElement('span');
+            badge.className = 'evidence-card-new';
+            badge.textContent = '!';
+            card_button.appendChild(badge);
+        }
+
+        card_button.addEventListener('click', () => openFlashcard(evidence.id, true));
+        evidenceCarouselTrack.appendChild(card_button);
+    }
+}
+
+function openEvidenceMenu() {
+    if (is_transitioning || is_in_dialog) {
+        return;
+    }
+
+    is_in_flashcard = true;
+    flashcardOverlay.classList.remove('hidden');
+    flashcardOverlay.setAttribute('aria-hidden', 'false');
+    evidenceMenuPanel.classList.remove('hidden');
+    flashcardViewer.classList.add('hidden');
+
+    for (const evidence of collected_evidence) {
+        evidence.isNew = false;
+    }
+    updateEvidenceMenuButton();
+    renderEvidenceMenu();
+    evidenceMenuButton.setAttribute('aria-expanded', 'true');
+}
+
+function toggleEvidenceMenu() {
+    if (is_transitioning || is_in_dialog) {
+        return;
+    }
+
+    if (is_in_flashcard) {
+        closeFlashcard();
+    } else {
+        openEvidenceMenu();
+    }
+}
 
 // Lista de elementos interativos (Personagens e Portas)
 const interactables = [
@@ -141,8 +306,17 @@ const interactables = [
     { type: 'door', zone: 'main', x: 1350, y: 50, width: 66, height: 120, extra_reach: 0, targetZone: 'estoque', targetX: 2580 + 33 - 11, targetY: 50 },
     { type: 'door', zone: 'estoque', x: 2580, y: 50, width: 66, height: 120, extra_reach: 0, targetZone: 'main', targetX: 1350 + 33 - 11, targetY: 50 },
     { type: 'door', zone: 'main', x: 80, y: 350, width: 66, height: 120, extra_reach: 0, targetZone: 'biologia', targetX: 3880 + 33 - 11, targetY: 50 },
-    { type: 'door', zone: 'biologia', x: 3880, y: 50, width: 66, height: 120, extra_reach: 0, targetZone: 'main', targetX: 80 + 33 - 11, targetY: 350 }
+    { type: 'door', zone: 'biologia', x: 3880, y: 50, width: 66, height: 120, extra_reach: 0, targetZone: 'main', targetX: 80 + 33 - 11, targetY: 350 },
+    { type: 'item', id: 'crime-weapon', zone: 'estoque', x: 2990, y: 112, width: 32, height: 32, extra_reach: 40 }
+
 ];
+
+const breathing_npcs = [
+    { id: 'nemo', element: document.getElementById('nemo'), x: 300, width: 22, phase: 0 },
+    { id: 'zny', element: document.getElementById('zny'), x: 1500, width: 22, phase: 2 },
+    { id: 'lazaro', element: document.getElementById('lazaro'), x: 1850, width: 22, phase: 4 }
+];
+let npcBreathingTime = 0;
 
 function getActiveInteractable() {
     const player_center_x = playerx + (player_width / 2);
@@ -167,30 +341,174 @@ function getActiveInteractable() {
     return null;
 }
 
-function startDialogue(npc_id) {
+function updateNpcAnimations(activeItem) {
+    npcBreathingTime += 0.02;
+
+    for (const npc of breathing_npcs) {
+        const breath = Math.sin(npcBreathingTime + npc.phase);
+        const is_facing_player = (npc.id === 'nemo' || npc.id === 'zny') &&
+            activeItem &&
+            activeItem.type === 'npc' &&
+            activeItem.id === npc.id;
+        const direction = is_facing_player && playerx + (player_width / 2) < npc.x + (npc.width / 2) ? -1 : 1;
+        const scale_x = 1 - breath * 0.012;
+        const scale_y = 1 + breath * 0.025;
+
+        npc.element.style.transform = `scaleX(${direction * scale_x}) scaleY(${scale_y})`;
+        npc.element.style.transformOrigin = 'bottom center';
+    }
+}
+
+function updateFlyParticles() {
+    flyParticleTime += 0.025;
+
+    for (const particle of flyParticles) {
+        const angle = flyParticleTime * particle.speed + particle.phase;
+        const x = flyParticleWidth / 2 + Math.cos(angle) * particle.radiusX;
+        const y = flyParticleHeight / 2 + Math.sin(angle * 1.3) * particle.radiusY;
+        particle.element.style.left = `${Math.round(x)}px`;
+        particle.element.style.top = `${Math.round(y)}px`;
+    }
+}
+
+async function startDialogue(npc_id) {
     is_in_dialog = true;
     velocityY = 0;
+    gameContainer.classList.add('dialog-open');
     interactionBubble.classList.add('hidden');
+    dialogText.textContent = 'Carregando...';
+    dialogBox.classList.remove('hidden');
 
-    const data = npc_dialogues[npc_id];
-    let speech = "";
-
-    if (npc_history[npc_id] === 0) {
-        speech = data.first;
-        npc_history[npc_id]++;
-    } else {
-        const randIndex = Math.floor(Math.random() * data.others.length);
-        speech = data.others[randIndex];
+    if (evidence_files[npc_id]) {
+        collectEvidence(npc_id).catch((error) => {
+            console.error(`Não foi possível registrar a evidência de "${npc_id}".`, error);
+            evidenceMenuMessage.textContent = 'Uma evidência não pôde ser carregada. Abra o jogo usando um servidor local.';
+            evidenceMenuMessage.classList.remove('hidden');
+        });
     }
 
-    dialogText.textContent = speech;
-    dialogBox.classList.remove('hidden');
+    try {
+        const data = await loadNpcDialogue(npc_id);
+        if (!is_in_dialog) {
+            return;
+        }
+
+        if (npc_history[npc_id] === 0) {
+            dialogText.textContent = data.first;
+            npc_history[npc_id]++;
+        } else {
+            const randIndex = Math.floor(Math.random() * data.others.length);
+            dialogText.textContent = data.others[randIndex];
+        }
+    } catch (error) {
+        console.error(`Não foi possível carregar o diálogo de "${npc_id}".`, error);
+        if (is_in_dialog) {
+            dialogText.textContent = 'Não foi possível carregar a fala. Abra o jogo usando um servidor local.';
+        }
+    }
 }
 
 function closeDialogue() {
     is_in_dialog = false;
+    gameContainer.classList.remove('dialog-open');
     dialogBox.classList.add('hidden');
+    keys.e = false;
+    keys.E = false;
+    keys[' '] = false;
 }
+
+async function openFlashcard(evidence_id, from_menu = false) {
+    is_in_flashcard = true;
+    velocityY = 0;
+    interactionBubble.classList.add('hidden');
+    current_evidence_id = evidence_id;
+    flashcardFolder.classList.remove('is-open');
+    flashcardFolder.classList.add('hidden');
+    flashcardFolder.setAttribute('aria-pressed', 'false');
+    flashcardFolder.setAttribute('aria-label', 'Pasta fechada. Pressione Enter para abrir.');
+    flashcardOverlay.classList.remove('hidden');
+    flashcardOverlay.setAttribute('aria-hidden', 'false');
+    evidenceMenuButton.setAttribute('aria-expanded', 'false');
+    evidenceMenuPanel.classList.add('hidden');
+    flashcardViewer.classList.remove('hidden');
+    flashcardBackToMenu.classList.toggle('hidden', !from_menu);
+    flashcardLoadMessage.textContent = 'Carregando evidência...';
+    flashcardLoadMessage.classList.remove('hidden');
+
+    try {
+        const evidence = await collectEvidence(evidence_id);
+        if (!is_in_flashcard || current_evidence_id !== evidence_id) {
+            return;
+        }
+
+        flashcardTitle.textContent = evidence.title;
+        flashcardQuestion.textContent = evidence.question;
+        flashcardAnswer.textContent = evidence.answer;
+        flashcardContent.textContent = evidence.content;
+        flashcardImage.src = evidence.img;
+        flashcardImage.alt = evidence.title;
+        flashcardLoadMessage.classList.add('hidden');
+        flashcardFolder.classList.remove('hidden');
+        flashcardFolder.focus();
+    } catch (error) {
+        console.error(`Não foi possível abrir a evidência "${evidence_id}".`, error);
+        flashcardLoadMessage.textContent = 'Não foi possível carregar esta evidência. Abra o jogo usando um servidor local.';
+        evidenceMenuMessage.textContent = flashcardLoadMessage.textContent;
+        evidenceMenuMessage.classList.remove('hidden');
+    }
+}
+
+function closeFlashcard() {
+    is_in_flashcard = false;
+    current_evidence_id = null;
+    flashcardOverlay.classList.add('hidden');
+    flashcardOverlay.setAttribute('aria-hidden', 'true');
+    evidenceMenuPanel.classList.add('hidden');
+    flashcardViewer.classList.add('hidden');
+    flashcardFolder.classList.remove('is-open');
+    flashcardFolder.classList.add('hidden');
+    flashcardFolder.setAttribute('aria-pressed', 'false');
+    evidenceMenuButton.setAttribute('aria-expanded', 'false');
+    keys.e = false;
+    keys.E = false;
+    keys.q = false;
+    keys.Q = false;
+    keys[' '] = false;
+}
+
+function toggleFlashcardFolder() {
+    const isOpen = flashcardFolder.classList.toggle('is-open');
+    flashcardFolder.setAttribute('aria-pressed', String(isOpen));
+    flashcardFolder.setAttribute(
+        'aria-label',
+        isOpen
+            ? `Pasta aberta. Pressione Enter para fechar. ${flashcardTitle.textContent}`
+            : `Pasta fechada. Pressione Enter para abrir. ${flashcardTitle.textContent}`
+    );
+}
+
+flashcardFolder.addEventListener('click', toggleFlashcardFolder);
+flashcardFolder.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        toggleFlashcardFolder();
+    }
+});
+
+flashcardMobileClose.addEventListener('click', (event) => {
+    event.stopPropagation();
+    closeFlashcard();
+});
+
+evidenceMenuButton.addEventListener('click', toggleEvidenceMenu);
+document.getElementById('evidence-menu-close').addEventListener('click', closeFlashcard);
+flashcardBackToMenu.addEventListener('click', openEvidenceMenu);
+document.getElementById('evidence-carousel-prev').addEventListener('click', () => {
+    evidenceCarouselTrack.scrollBy({ left: -200, behavior: 'smooth' });
+});
+document.getElementById('evidence-carousel-next').addEventListener('click', () => {
+    evidenceCarouselTrack.scrollBy({ left: 200, behavior: 'smooth' });
+});
 
 function enterDoorFromList(item) {
     is_transitioning = true;
@@ -227,14 +545,91 @@ function enterDoorFromList(item) {
 // Objeto para rastrear as teclas pressionadas
 const keys = {};
 
+function blurFocusedButton() {
+    if (document.activeElement instanceof HTMLButtonElement) {
+        document.activeElement.blur();
+    }
+}
+
+const touch_control_keys = {
+    left: ['ArrowLeft'],
+    right: ['ArrowRight'],
+    jump: ['ArrowUp', ' '],
+    interact: ['e']
+};
+const touchControlButtons = document.querySelectorAll('[data-touch-control]');
+
+for (const button of touchControlButtons) {
+    const control_keys = touch_control_keys[button.dataset.touchControl];
+    let release_timer;
+
+    button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        clearTimeout(release_timer);
+        button.setPointerCapture(event.pointerId);
+        for (const key of control_keys) {
+            keys[key] = true;
+        }
+    });
+
+    button.addEventListener('pointerup', (event) => {
+        event.preventDefault();
+        release_timer = setTimeout(() => {
+            for (const key of control_keys) {
+                keys[key] = false;
+                if (key === 'ArrowUp') {
+                    door_cooldown = false;
+                }
+            }
+        }, 75);
+    });
+
+    button.addEventListener('pointercancel', () => {
+        clearTimeout(release_timer);
+        for (const key of control_keys) {
+            keys[key] = false;
+            if (key === 'ArrowUp') {
+                door_cooldown = false;
+            }
+        }
+    });
+}
+
 window.addEventListener('keydown', (e) => {
     keys[e.key] = true;
+    const is_evidence_menu_key = e.key === 'q' || e.key === 'Q';
+
+    if (is_evidence_menu_key && e.repeat) {
+        return;
+    }
+
+    if (is_in_flashcard) {
+        if (e.key === ' ') {
+            e.preventDefault();
+            closeFlashcard();
+        } else if (is_evidence_menu_key) {
+            e.preventDefault();
+            closeFlashcard();
+            blurFocusedButton();
+        }
+        return;
+    }
 
     // Se estiver em diálogo, pressionar Espaço, Enter ou E fecha a caixa
     if (is_in_dialog) {
         if (e.key === ' ' || e.key === 'Enter' || e.key === 'e' || e.key === 'E') {
+            if (e.key === ' ') {
+                e.preventDefault();
+            }
             closeDialogue();
         }
+        return;
+    }
+
+    if (is_evidence_menu_key && !is_transitioning) {
+        e.preventDefault();
+        openEvidenceMenu();
+        blurFocusedButton();
     }
 });
 
@@ -245,10 +640,34 @@ window.addEventListener('keyup', (e) => {
     }
 });
 
+document.addEventListener('pointerdown', (event) => {
+    if (
+        event.pointerType === 'mouse' &&
+        event.target instanceof Element &&
+        event.target.closest('button')
+    ) {
+        event.preventDefault();
+    }
+});
+
+document.addEventListener('click', (event) => {
+    if (
+        event.detail > 0 &&
+        event.target instanceof Element &&
+        event.target.closest('button') &&
+        document.activeElement instanceof HTMLElement
+    ) {
+        document.activeElement.blur();
+    }
+});
+
 function gameLoop() {
+    updateFlyParticles();
+    const activeItem = getActiveInteractable();
+    updateNpcAnimations(activeItem);
 
     // Trava a movimentação durante transição ou diálogo
-    if (is_transitioning || is_in_dialog) {
+    if (is_transitioning || is_in_dialog || is_in_flashcard) {
         interactionBubble.classList.add('hidden');
         requestAnimationFrame(gameLoop);
         return;
@@ -259,12 +678,9 @@ function gameLoop() {
     const interact_pressed = keys['e'] || keys['E'];
 
     // Checar elemento ativo para interação
-    const activeItem = getActiveInteractable();
-
     if (activeItem) {
         // Posiciona o balão de interação (!) na tela de forma correta (relativo ao game-container)
         const player_screen_x = playerx - camerax + (player_width / 2);
-        // Altura do jogo = 450px. Player bottom = playery, height = player_height.
         const player_screen_y = 450 - (playery - cameray) - player_height - 15;
         
         interactionBubble.style.left = player_screen_x + 'px';
@@ -280,6 +696,12 @@ function gameLoop() {
             return;
         } else if (activeItem.type === 'npc' && interact_pressed) {
             startDialogue(activeItem.id);
+            requestAnimationFrame(gameLoop);
+            return;
+        } else if (activeItem.type === 'item' && interact_pressed) {
+            openFlashcard(activeItem.id);
+            requestAnimationFrame(gameLoop);
+            return;
         }
     } else {
         interactionBubble.classList.add('hidden');

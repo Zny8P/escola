@@ -37,6 +37,9 @@
                 <div id="crime-weapon"></div>
             </div>
 
+            <!-- Cozinha aberta integrada ao cômodo principal -->
+            <div id="zone-kitchen" aria-hidden="true"></div>
+
             <!--  Chão segundo andar  -->
             <div id="floor-top" class="floor"></div>
 
@@ -62,6 +65,7 @@
             <div id="nemo" class="sprite"></div>
             <div id="lazaro" class="sprite"></div>
             <div id="biologia" class="dead-sprite"></div>
+            <div id="fly-particles" aria-hidden="true"></div>
 
 
             <!--  Player — O Detetive  -->
@@ -70,7 +74,71 @@
 
         <!--  Caixa de Diálogo (Placeholder)  -->
         <div id="dialog-box" class="hidden">
+            <span id="dialog-hint" class="dialog-hint">Aperte espaço para sair</span>
             <div id="dialog-text"></div>
+        </div>
+
+        <button id="evidence-menu-button" type="button" aria-controls="evidence-menu-panel" aria-expanded="false">
+            EVIDÊNCIAS [Q]
+            <span id="evidence-new-indicator" class="evidence-new-indicator hidden" aria-label="Novas evidências">!</span>
+        </button>
+
+        <div id="flashcard-overlay" class="hidden" aria-hidden="true">
+            <section id="evidence-menu-panel" class="evidence-menu-panel hidden" role="dialog" aria-modal="true"
+                aria-labelledby="evidence-menu-title">
+                <header class="evidence-menu-header">
+                    <h2 id="evidence-menu-title">ARQUIVO DE EVIDÊNCIAS</h2>
+                    <button id="evidence-menu-close" type="button" aria-label="Fechar arquivo">×</button>
+                </header>
+                <p id="evidence-menu-empty" class="evidence-menu-empty">Você ainda não encontrou nenhuma evidência.</p>
+                <p id="evidence-menu-message" class="evidence-menu-message hidden"></p>
+                <div id="evidence-carousel" class="evidence-carousel hidden">
+                    <button id="evidence-carousel-prev" class="evidence-carousel-arrow" type="button" aria-label="Evidências anteriores">‹</button>
+                    <div id="evidence-carousel-track" class="evidence-carousel-track"></div>
+                    <button id="evidence-carousel-next" class="evidence-carousel-arrow" type="button" aria-label="Próximas evidências">›</button>
+                </div>
+            </section>
+
+            <div id="flashcard-viewer" class="flashcard-viewer hidden">
+                <button id="flashcard-back-to-menu" class="flashcard-back-to-menu hidden" type="button">← Arquivo de evidências</button>
+                <p id="flashcard-load-message" class="flashcard-load-message hidden"></p>
+                <div id="flashcard-folder" class="flashcard-folder" role="button" tabindex="0"
+                    aria-label="Pasta fechada. Pressione Enter para abrir." aria-pressed="false">
+                    <div class="flashcard-folder-inside">
+                        <div class="flashcard-back-content">
+                            <div class="flashcard-answer-copy">
+                                <span class="flashcard-section-label">RESPOSTA</span>
+                                <p id="flashcard-answer"></p>
+                            </div>
+                            <img id="flashcard-image" alt="">
+                            <div class="flashcard-content-copy">
+                                <span class="flashcard-section-label">INVESTIGAÇÃO</span>
+                                <p id="flashcard-content"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="flashcard-folder-cover" class="flashcard-folder-cover">
+                        <div class="flashcard-cover-face flashcard-cover-front">
+                            <span id="flashcard-title"></span>
+                            <p id="flashcard-question"></p>
+                        </div>
+                        <div class="flashcard-cover-face flashcard-cover-back"></div>
+                    </div>
+                    <span class="flashcard-instructions">Aperte espaço para sair</span>
+                    <button id="flashcard-mobile-close" type="button" aria-label="Fechar flashcard">X</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="touch-controls" aria-label="Controles do jogo">
+        <div class="touch-control-group">
+            <button type="button" data-touch-control="left" aria-label="Andar para a esquerda">◀</button>
+            <button type="button" data-touch-control="right" aria-label="Andar para a direita">▶</button>
+        </div>
+        <div class="touch-control-group">
+            <button type="button" data-touch-control="jump" aria-label="Pular ou subir escada">↑</button>
+            <button type="button" data-touch-control="interact" aria-label="Interagir">E</button>
         </div>
     </div>
 
